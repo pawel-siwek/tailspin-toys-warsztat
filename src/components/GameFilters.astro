@@ -1,0 +1,117 @@
+---
+import Button from './Button.astro';
+import type { Category, Publisher } from '../types/game';
+
+/** Właściwości komponentu filtrów listy gier. */
+interface Props {
+    /** Kategorie dostępne jako opcje filtra. */
+    categories: Category[];
+    /** Wydawcy dostępni jako opcje filtra. */
+    publishers: Publisher[];
+    /** Łączna liczba gier, pokazywana w liczniku przed zastosowaniem filtrów. */
+    total: number;
+}
+
+const { categories, publishers, total } = Astro.props;
+
+const groups = [
+    { key: 'category', legend: 'Kategorie', items: categories },
+    { key: 'publisher', legend: 'Wydawcy', items: publishers },
+];
+
+const optionClasses =
+    'flex items-center gap-2 cursor-pointer rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm text-slate-200 transition-colors duration-200 hover:bg-slate-700 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-600/20 focus-within:ring-2 focus-within:ring-blue-500';
+---
+
+<form
+    id="game-filters"
+    class="mb-8 bg-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6 shadow-lg"
+    data-testid="game-filters"
+    aria-label="Filtry listy gier"
+    data-total={total}
+>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {groups.map((group) => (
+            <fieldset class="min-w-0" data-testid={`filter-${group.key}-group`}>
+                <legend class="mb-3 text-sm font-semibold text-slate-100">{group.legend}</legend>
+                <div class="flex flex-wrap gap-2">
+                    {group.items.map((item) => (
+                        <label class={optionClasses}>
+                            <input
+                                type="checkbox"
+                                name={group.key}
+                                value={item.id}
+                                class="h-4 w-4 accent-blue-500 focus:outline-none"
+                                data-testid={`filter-${group.key}-${item.id}`}
+                            />
+                            <span>{item.name}</span>
+                        </label>
+                    ))}
+                </div>
+            </fieldset>
+        ))}
+    </div>
+
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <p class="text-sm text-slate-300" role="status" aria-live="polite" data-testid="filter-count">
+            Wyświetlono {total} z {total} gier
+        </p>
+        <Button type="reset" size="sm" data-testid="filter-clear">Wyczyść filtry</Button>
+    </div>
+</form>
+
+<script>
+    import { matchesFilters } from '../lib/filters';
+
+    const form = document.querySelector<HTMLFormElement>('#game-filters');
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="game-card"]'));
+    const grid = document.querySelector<HTMLElement>('[data-testid="games-grid"]');
+    const noResults = document.querySelector<HTMLElement>('#games-no-results');
+    const count = document.querySelector<HTMLElement>('[data-testid="filter-count"]');
+
+    /**
+     * Zwraca identyfikatory zaznaczonych pól wyboru z danej grupy.
+     *
+     * @param name - Wartość atrybutu `name` grupy pól (`category` lub `publisher`).
+     * @returns Identyfikatory wybranych opcji.
+     */
+    function selectedIds(name: string): number[] {
+        if (!form) return [];
+        return Array.from(form.querySelectorAll<HTMLInputElement>(`input[name="${name}"]:checked`)).map((input) =>
+            Number(input.value),
+        );
+    }
+
+    /**
+     * Zamienia wartość atrybutu `data-*` na identyfikator.
+     *
+     * @param value - Wartość atrybutu albo `undefined`, gdy go brak.
+     * @returns Identyfikator albo null dla braku lub pustej wartości.
+     */
+    function toId(value: string | undefined): number | null {
+        return value === undefined || value === '' ? null : Number(value);
+    }
+
+    /** Ukrywa karty niepasujące do wybranych filtrów i odświeża licznik oraz pusty stan. */
+    function applyFilters(): void {
+        const filters = { categoryIds: selectedIds('category'), publisherIds: selectedIds('publisher') };
+        let visible = 0;
+        for (const card of cards) {
+            const match = matchesFilters(
+                { categoryId: toId(card.dataset.categoryId), publisherId: toId(card.dataset.publisherId) },
+                filters,
+            );
+            card.hidden = !match;
+            if (match) visible++;
+        }
+        grid?.classList.toggle('hidden', visible === 0);
+        noResults?.classList.toggle('hidden', visible !== 0);
+        if (count) count.textContent = `Wyświetlono ${visible} z ${cards.length} gier`;
+    }
+
+    form?.addEventListener('change', applyFilters);
+    // Zdarzenie reset odpala się przed odznaczeniem pól, więc odświeżamy po nim.
+    form?.addEventListener('reset', () => setTimeout(applyFilters, 0));
+    form?.addEventListener('submit', (event) => event.preventDefault());
+    applyFilters();
+</script>

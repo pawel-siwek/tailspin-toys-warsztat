@@ -36,6 +36,7 @@ To platforma crowdfundingowa dla gier o tematyce programistycznej. Aplikacja to 
 
 - Używaj TypeScriptu z jawnymi typami parametrów funkcji i wartości zwracanych, zwłaszcza w warstwie danych (`db/`, `src/lib/`)
 - Kod frontendu (TypeScript, Astro) musi przechodzić kontrolę ESLint (`npm run lint`)
+- /Każdy nowy kod TypeScript ma zawierać komentarze TSDoc dokumentujące funkcje i typy.
 
 ### Wzorce warstwy danych (Drizzle + Node SQLite)
 
@@ -90,13 +91,13 @@ To platforma crowdfundingowa dla gier o tematyce programistycznej. Aplikacja to 
 Aplikacja znajduje się w katalogu głównym repozytorium:
 
 - `db/`: schemat Drizzle, migracje, transformacje, seed i `games.csv`
-- `src/lib/`: klient Node SQLite (`db.ts`) i helpery dostępu do danych (`games.ts`)
-- `src/components/`: komponenty `.astro` wielokrotnego użytku
+- `src/lib/`: klient Node SQLite (`db.ts`) i helpery dostępu do danych (`games.ts`, w tym `getGames` z filtrami) i czysta logika filtrów (`filters.ts`)
+- `src/components/`: komponenty `.astro` wielokrotnego użytku (np. `GameFilters.astro` z filtrami kategorii i wydawców)
 - `src/layouts/`: szablony layoutów Astro
 - `src/pages/`: trasy stron Astro (lista `index.astro`, `game/[id].astro`, `404.astro`, `about.astro`)
 - `src/styles/`: CSS i konfiguracja Tailwind
 - `src/types/`: interfejsy TypeScript (Game, Publisher, Category)
-- `e2e-tests/`: testy E2E Playwright (strona główna, gry, dostępność)
+- `e2e-tests/`: testy E2E Playwright (strona główna, gry, filtry, dostępność)
 - `drizzle.config.ts`, `vitest.config.ts`, `astro.config.mjs`, `playwright.config.ts`: konfiguracja narzędzi
 - `README.md`: dokumentacja projektu
 

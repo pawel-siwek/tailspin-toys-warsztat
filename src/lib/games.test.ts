@@ -4,6 +4,9 @@ import { categories, publishers, games } from '../../db/schema';
 import type { Database } from './db';
 import {
     getAllGames,
+    getGames,
+    getAllCategories,
+    getAllPublishers,
     getAllGameIds,
     getGameById,
 } from './games';
@@ -62,5 +65,79 @@ describe('helpery dostępu do danych o grach', () => {
     it('zwraca null dla nieistniejącej gry', async () => {
         await seedGames(db, 2);
         expect(await getGameById(db, 99999)).toBeNull();
+    });
+
+    describe('filtrowanie', () => {
+        let ids: { categories: number[]; publishers: number[] };
+
+        beforeEach(async () => {
+            const cats = await db
+                .insert(categories)
+                .values([{ name: 'Zręcznościowe' }, { name: 'Strategia' }, { name: 'Logiczne' }])
+                .returning({ id: categories.id });
+            const pubs = await db
+                .insert(publishers)
+                .values([{ name: 'Wydawca B' }, { name: 'Wydawca A' }, { name: 'Wydawca C' }])
+                .returning({ id: publishers.id });
+            const [c1, c2, c3] = cats.map((c) => c.id);
+            const [p1, p2, p3] = pubs.map((p) => p.id);
+            ids = { categories: [c1, c2, c3], publishers: [p1, p2, p3] };
+            await db.insert(games).values([
+                { title: 'Alfa', description: 'a', categoryId: c1, publisherId: p1 },
+                { title: 'Beta', description: 'b', categoryId: c2, publisherId: p1 },
+                { title: 'Gamma', description: 'c', categoryId: c2, publisherId: p2 },
+                { title: 'Delta', description: 'd', categoryId: c3, publisherId: p2 },
+            ]);
+        });
+
+        /**
+         * Pobiera tytuły gier dla podanych filtrów.
+         *
+         * @param filters - Kryteria filtrowania przekazywane do `getGames`.
+         * @returns Tytuły w kolejności zwróconej przez helper.
+         */
+        const titles = async (filters?: Parameters<typeof getGames>[1]): Promise<string[]> =>
+            (await getGames(db, filters)).map((g) => g.title);
+
+        it('zwraca wszystkie gry bez filtrów lub z pustymi listami', async () => {
+            expect(await titles()).toEqual(['Alfa', 'Beta', 'Delta', 'Gamma']);
+            expect(await titles({ categoryIds: [], publisherIds: [] })).toEqual(['Alfa', 'Beta', 'Delta', 'Gamma']);
+        });
+
+        it('filtruje po jednej kategorii', async () => {
+            expect(await titles({ categoryIds: [ids.categories[1]] })).toEqual(['Beta', 'Gamma']);
+        });
+
+        it('filtruje po wielu kategoriach (lub)', async () => {
+            expect(await titles({ categoryIds: [ids.categories[0], ids.categories[2]] })).toEqual(['Alfa', 'Delta']);
+        });
+
+        it('filtruje po wielu wydawcach (lub)', async () => {
+            expect(await titles({ publisherIds: [ids.publishers[0], ids.publishers[1]] })).toEqual([
+                'Alfa',
+                'Beta',
+                'Delta',
+                'Gamma',
+            ]);
+            expect(await titles({ publisherIds: [ids.publishers[1]] })).toEqual(['Delta', 'Gamma']);
+        });
+
+        it('łączy filtry kategorii i wydawcy (i)', async () => {
+            expect(
+                await titles({ categoryIds: [ids.categories[1]], publisherIds: [ids.publishers[1]] }),
+            ).toEqual(['Gamma']);
+        });
+
+        it('zwraca pustą listę, gdy nic nie pasuje', async () => {
+            expect(
+                await titles({ categoryIds: [ids.categories[0]], publisherIds: [ids.publishers[1]] }),
+            ).toEqual([]);
+            expect(await titles({ publisherIds: [ids.publishers[2]] })).toEqual([]);
+        });
+
+        it('zwraca kategorie i wydawców posortowanych po nazwie', async () => {
+            expect((await getAllCategories(db)).map((c) => c.name)).toEqual(['Logiczne', 'Strategia', 'Zręcznościowe']);
+            expect((await getAllPublishers(db)).map((p) => p.name)).toEqual(['Wydawca A', 'Wydawca B', 'Wydawca C']);
+        });
     });
 });

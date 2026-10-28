@@ -46,6 +46,10 @@ npm run build      # prebuild migruje i zasila, potem buduje witrynę statyczną
 npm run preview
 ```
 
+## Filtrowanie gier
+
+Na stronie głównej można filtrować listę gier po jednej lub wielu kategoriach oraz po jednym lub wielu wydawcach. W obrębie grupy filtry działają jako „lub”, a grupy kategorii i wydawców łączą się jako „i”. Filtrowanie odbywa się po stronie klienta (lokalny skrypt Astro w `src/components/GameFilters.astro`, logika w `src/lib/filters.ts`), a stan filtrów nie trafia do adresu URL. Po stronie danych `getGames(db, filters)` w `src/lib/games.ts` stosuje te same reguły.
+
 ## Baza danych
 
 Baza SQLite powstaje z `db/games.csv`. Nie ma żadnych danych produkcyjnych do migrowania.
